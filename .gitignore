@@ -1,0 +1,18 @@
+# Build artifacts
+build/
+cmake-build-*/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# Compiled
+*.o
+*.a
+*.so
+*.dylib
+
+# Generated files
+generated/

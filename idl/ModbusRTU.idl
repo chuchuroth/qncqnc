@@ -1,0 +1,478 @@
+/**
+ * ModbusRTU.idl
+ *
+ * General-purpose NeuraSync IDL for ModbusRTU communication between
+ * robotic platforms and QNC (external device interface).
+ *
+ * Design Philosophy:
+ * - QNC publishes raw Modbus data in a device-agnostic format
+ * - Robot platform uses a JSON device descriptor to parse the data
+ * - Supports any ModbusRTU device without IDL modifications
+ *
+ * Data Flow:
+ *   Robot Platform <--NeuraSync--> QNC <--ModbusRTU--> External Device
+ *
+ * The robot platform receives:
+ *   1. Device descriptor (once, on connect) - tells how to parse data
+ *   2. Device state (periodic) - raw register/coil values
+ *   3. Transaction responses (on-demand) - for explicit read/write requests
+ *
+ * Copyright (C) 2025 NeuraSync
+ */
+
+module ModbusRTU {
+
+    /**************************************************************************
+     * Constants
+     **************************************************************************/
+
+    const unsigned short MAX_REGISTERS = 125;      // Max registers per transaction (Modbus limit)
+    const unsigned short MAX_COILS = 2000;         // Max coils per transaction
+    const unsigned short MAX_DEVICE_NAME_LEN = 64;
+    const unsigned short MAX_ERROR_MSG_LEN = 128;
+    const unsigned short MAX_DESCRIPTOR_LEN = 8192; // JSON descriptor max length
+
+    /**************************************************************************
+     * Enumerations
+     **************************************************************************/
+
+    /**
+     * Modbus function codes supported
+     */
+    enum FunctionCode {
+        FC_READ_COILS,              // 0x01
+        FC_READ_DISCRETE_INPUTS,    // 0x02
+        FC_READ_HOLDING_REGISTERS,  // 0x03
+        FC_READ_INPUT_REGISTERS,    // 0x04
+        FC_WRITE_SINGLE_COIL,       // 0x05
+        FC_WRITE_SINGLE_REGISTER,   // 0x06
+        FC_WRITE_MULTIPLE_COILS,    // 0x0F
+        FC_WRITE_MULTIPLE_REGISTERS // 0x10
+    };
+
+    /**
+     * Connection state of the Modbus device
+     */
+    enum ConnectionState {
+        DISCONNECTED,       // Device not connected
+        CONNECTING,         // Connection in progress
+        CONNECTED,          // Device connected and responding
+        ERROR,              // Communication error
+        TIMEOUT             // Device not responding
+    };
+
+    /**
+     * Transaction status for read/write operations
+     */
+    enum TransactionStatus {
+        TX_SUCCESS,                 // Operation completed successfully
+        TX_PENDING,                 // Operation in progress
+        TX_ERROR_ILLEGAL_FUNCTION,  // Modbus exception 0x01
+        TX_ERROR_ILLEGAL_ADDRESS,   // Modbus exception 0x02
+        TX_ERROR_ILLEGAL_VALUE,     // Modbus exception 0x03
+        TX_ERROR_DEVICE_FAILURE,    // Modbus exception 0x04
+        TX_ERROR_TIMEOUT,           // No response from device
+        TX_ERROR_CRC,               // CRC mismatch
+        TX_ERROR_CONNECTION         // Serial/connection error
+    };
+
+    /**************************************************************************
+     * Basic Data Types
+     **************************************************************************/
+
+    /**
+     * Timestamp for synchronization
+     */
+    struct Timestamp {
+        long sec;           // Seconds since epoch
+        unsigned long nsec; // Nanoseconds
+    };
+
+    /**
+     * Device identification
+     */
+    struct DeviceInfo {
+        string<MAX_DEVICE_NAME_LEN> device_id;      // Unique device identifier (e.g., "gripper_01")
+        string<MAX_DEVICE_NAME_LEN> device_type;    // Device type (e.g., "DH_AG95", "ROBOTIQ_2F85")
+        string<MAX_DEVICE_NAME_LEN> manufacturer;   // Manufacturer name
+        string<MAX_DEVICE_NAME_LEN> model;          // Model number
+        octet slave_id;                              // Modbus slave address (1-247)
+    };
+
+    /**************************************************************************
+     * Device Descriptor Message
+     *
+     * Sent once when device connects or on request.
+     * Contains JSON schema that tells the robot how to interpret raw data.
+     **************************************************************************/
+
+    /**
+     * Device descriptor containing JSON schema for data interpretation
+     *
+     * The robot platform uses this JSON to:
+     * - Map register addresses to named fields
+     * - Apply scaling/offset to raw values
+     * - Understand data types and units
+     * - Know available commands and their parameters
+     */
+    struct DeviceDescriptor {
+        DeviceInfo device;
+        Timestamp time_stamp;
+
+        /**
+         * JSON device descriptor - contains register map, commands, capabilities
+         * Robot parses this to understand how to interpret DeviceState data
+         *
+         * Example JSON structure:
+         * {
+         *   "registers": {
+         *     "holding": [
+         *       {"address": 256, "name": "init_command", "type": "uint16", "access": "wo"},
+         *       {"address": 259, "name": "target_position", "type": "uint16", "unit": "permille", "scale": 0.001}
+         *     ],
+         *     "input": [
+         *       {"address": 512, "name": "init_state", "type": "uint16", "enum": {"not_init": 0, "initializing": 1, "ready": 2}},
+         *       {"address": 514, "name": "current_position", "type": "uint16", "unit": "permille", "scale": 0.001}
+         *     ]
+         *   },
+         *   "capabilities": {"max_force_n": 140, "max_speed_mm_s": 100, "stroke_mm": 95}
+         * }
+         */
+        string<MAX_DESCRIPTOR_LEN> json_descriptor;
+    };
+
+    /**************************************************************************
+     * Device State Message (QNC -> Robot Platform)
+     *
+     * Published periodically by QNC with current device state.
+     * Contains raw register values; robot uses JSON descriptor to interpret.
+     **************************************************************************/
+
+    /**
+     * Raw register block - a contiguous range of registers
+     */
+    struct RegisterBlock {
+        unsigned short start_address;               // Starting register address
+        sequence<unsigned short, MAX_REGISTERS> values;  // Register values (16-bit each)
+    };
+
+    /**
+     * Raw coil block - a contiguous range of coils
+     */
+    struct CoilBlock {
+        unsigned short start_address;               // Starting coil address
+        sequence<boolean, MAX_COILS> values;        // Coil states
+    };
+
+    /**
+     * Complete device state - published by QNC at configured rate
+     *
+     * Contains raw Modbus data that the robot platform interprets
+     * using the JSON device descriptor.
+     */
+    struct DeviceState {
+        DeviceInfo device;
+        Timestamp time_stamp;
+        ConnectionState connection_state;
+
+        // Raw register data (as read from device)
+        sequence<RegisterBlock, 8> holding_registers;   // Function code 0x03
+        sequence<RegisterBlock, 8> input_registers;     // Function code 0x04
+
+        // Raw coil/discrete input data
+        sequence<CoilBlock, 4> coils;                   // Function code 0x01
+        sequence<CoilBlock, 4> discrete_inputs;         // Function code 0x02
+
+        // Sequence number for detecting missed messages
+        unsigned long sequence_num;
+
+        // Error information (if connection_state == ERROR)
+        string<MAX_ERROR_MSG_LEN> error_message;
+    };
+
+    /**************************************************************************
+     * Command Messages (Robot Platform -> QNC)
+     *
+     * Robot platform sends commands to QNC for execution on the device.
+     **************************************************************************/
+
+    /**
+     * Write register command
+     */
+    struct WriteRegisterCmd {
+        unsigned short address;         // Register address
+        unsigned short value;           // Value to write
+    };
+
+    /**
+     * Write multiple registers command
+     */
+    struct WriteRegistersCmd {
+        unsigned short start_address;   // Starting register address
+        sequence<unsigned short, MAX_REGISTERS> values;  // Values to write
+    };
+
+    /**
+     * Write coil command
+     */
+    struct WriteCoilCmd {
+        unsigned short address;         // Coil address
+        boolean value;                  // Value to write
+    };
+
+    /**
+     * Read register command (for on-demand reads outside of polling)
+     */
+    struct ReadRegisterCmd {
+        unsigned short start_address;   // Starting register address
+        unsigned short count;           // Number of registers to read (1-125)
+    };
+
+    /**
+     * Read coil command (for on-demand reads outside of polling)
+     */
+    struct ReadCoilCmd {
+        unsigned short start_address;   // Starting coil address
+        unsigned short count;           // Number of coils to read (1-2000)
+    };
+
+    /**
+     * Write multiple coils command
+     */
+    struct WriteCoilsCmd {
+        unsigned short start_address;   // Starting coil address
+        sequence<boolean, MAX_COILS> values;  // Values to write
+    };
+
+    /**
+     * Generic device command from robot platform to QNC
+     *
+     * Supports all Modbus read/write operations.
+     * Use function_code to determine which command field is active.
+     */
+    struct DeviceCommand {
+        DeviceInfo device;              // Target device
+        Timestamp time_stamp;
+        unsigned long command_id;       // Unique command ID for tracking
+        FunctionCode function_code;     // Modbus function to execute
+
+        // Command data (use appropriate field based on function_code)
+        WriteRegisterCmd write_register;      // For FC_WRITE_SINGLE_REGISTER
+        WriteRegistersCmd write_registers;    // For FC_WRITE_MULTIPLE_REGISTERS
+        WriteCoilCmd write_coil;              // For FC_WRITE_SINGLE_COIL
+        WriteCoilsCmd write_coils;            // For FC_WRITE_MULTIPLE_COILS
+        ReadRegisterCmd read_registers;       // For FC_READ_HOLDING_REGISTERS, FC_READ_INPUT_REGISTERS
+        ReadCoilCmd read_coils;               // For FC_READ_COILS, FC_READ_DISCRETE_INPUTS
+    };
+
+    /**************************************************************************
+     * High-Level Command Interface
+     *
+     * Optional abstraction for robot platforms that prefer named commands
+     * over raw register operations. QNC translates these using the device's
+     * JSON descriptor.
+     **************************************************************************/
+
+    /**
+     * Named command parameter (key-value pair)
+     */
+    struct CommandParam {
+        string<32> name;                // Parameter name (e.g., "force", "speed", "position")
+        double value;                   // Parameter value (robot applies unit conversion)
+    };
+
+    /**
+     * High-level named command
+     *
+     * Robot platform sends semantic commands (e.g., "grip", "release", "move_to")
+     * QNC looks up the command in the device's JSON descriptor and executes
+     * the corresponding register write sequence.
+     *
+     * This provides two usage modes:
+     * 1. Low-level: Robot uses DeviceCommand with raw register addresses
+     * 2. High-level: Robot uses NamedCommand with semantic names
+     */
+    struct NamedCommand {
+        DeviceInfo device;
+        Timestamp time_stamp;
+        unsigned long command_id;
+
+        string<32> command_name;        // Command name from JSON descriptor (e.g., "grip", "release")
+        sequence<CommandParam, 8> params; // Command parameters
+    };
+
+    /**************************************************************************
+     * Transaction Response (QNC -> Robot Platform)
+     *
+     * Sent by QNC after executing a DeviceCommand.
+     **************************************************************************/
+
+    /**
+     * Response to a command transaction
+     */
+    struct TransactionResponse {
+        DeviceInfo device;
+        Timestamp time_stamp;
+        unsigned long command_id;       // Matches the command_id from DeviceCommand
+        TransactionStatus status;
+
+        // For read operations, contains the data read
+        sequence<unsigned short, MAX_REGISTERS> register_data;
+        sequence<boolean, MAX_COILS> coil_data;
+
+        // Error details (if status != TX_SUCCESS)
+        string<MAX_ERROR_MSG_LEN> error_message;
+    };
+
+    /**************************************************************************
+     * Configuration Messages
+     *
+     * For configuring QNC's polling behavior at runtime.
+     **************************************************************************/
+
+    /**
+     * Register polling configuration
+     */
+    struct RegisterPollConfig {
+        unsigned short start_address;
+        unsigned short count;           // Number of registers to read
+        FunctionCode function_code;     // FC_READ_HOLDING_REGISTERS or FC_READ_INPUT_REGISTERS
+        unsigned short poll_interval_ms; // Polling interval in milliseconds
+    };
+
+    /**
+     * Coil polling configuration
+     */
+    struct CoilPollConfig {
+        unsigned short start_address;
+        unsigned short count;           // Number of coils to read
+        FunctionCode function_code;     // FC_READ_COILS or FC_READ_DISCRETE_INPUTS
+        unsigned short poll_interval_ms;
+    };
+
+    /**
+     * Device polling configuration
+     *
+     * Sent by robot platform to configure which registers/coils
+     * QNC should poll and at what rate.
+     */
+    struct DeviceConfig {
+        DeviceInfo device;
+        Timestamp time_stamp;
+
+        // Serial port configuration
+        string<64> serial_port;         // e.g., "/dev/ttyUSB0"
+        unsigned long baudrate;         // e.g., 115200
+        octet data_bits;                // 7 or 8
+        octet stop_bits;                // 1 or 2
+        octet parity;                   // 0=None, 1=Odd, 2=Even
+
+        // Polling configuration
+        sequence<RegisterPollConfig, 16> register_polls;
+        sequence<CoilPollConfig, 8> coil_polls;
+
+        // Timeouts
+        unsigned short response_timeout_ms;     // Modbus response timeout
+        unsigned short inter_frame_delay_ms;    // Delay between transactions
+    };
+
+    /**************************************************************************
+     * Heartbeat / Connection Management
+     **************************************************************************/
+
+    /**
+     * QNC heartbeat - indicates QNC is alive and device connection status
+     */
+    struct QNCHeartbeat {
+        Timestamp time_stamp;
+        sequence<DeviceInfo, 8> connected_devices;
+        sequence<ConnectionState, 8> device_states;
+        unsigned long uptime_sec;       // QNC uptime in seconds
+    };
+
+    /**************************************************************************
+     * Device Discovery and Management
+     **************************************************************************/
+
+    /**
+     * Request types for device management
+     */
+    enum RequestType {
+        REQ_DISCOVER_DEVICES,           // Scan for connected devices
+        REQ_GET_DESCRIPTOR,             // Request device descriptor
+        REQ_CONNECT_DEVICE,             // Connect to a specific device
+        REQ_DISCONNECT_DEVICE,          // Disconnect from a device
+        REQ_GET_STATUS                  // Request current device status
+    };
+
+    /**
+     * Device management request from robot platform
+     */
+    struct DeviceRequest {
+        Timestamp time_stamp;
+        unsigned long request_id;
+        RequestType request_type;
+        DeviceInfo device;              // Target device (for device-specific requests)
+    };
+
+    /**
+     * Discovery result for a single device
+     */
+    struct DiscoveredDevice {
+        DeviceInfo device;
+        ConnectionState state;
+        string<64> serial_port;         // Physical port where device was found
+        boolean descriptor_available;   // True if JSON descriptor is loaded
+    };
+
+    /**
+     * Response to device management requests
+     */
+    struct DeviceResponse {
+        Timestamp time_stamp;
+        unsigned long request_id;       // Matches request_id from DeviceRequest
+        RequestType request_type;
+        boolean success;
+        string<MAX_ERROR_MSG_LEN> error_message;
+
+        // For REQ_DISCOVER_DEVICES
+        sequence<DiscoveredDevice, 16> discovered_devices;
+
+        // For REQ_GET_DESCRIPTOR
+        DeviceDescriptor descriptor;
+
+        // For REQ_GET_STATUS
+        DeviceState state;
+    };
+
+    /**************************************************************************
+     * Batch Operations (Efficiency Optimization)
+     *
+     * For high-frequency operations, batch multiple commands into single
+     * messages to reduce overhead.
+     **************************************************************************/
+
+    /**
+     * Batch command - multiple register operations in one message
+     */
+    struct BatchCommand {
+        DeviceInfo device;
+        Timestamp time_stamp;
+        unsigned long batch_id;
+
+        sequence<DeviceCommand, 16> commands;  // Executed in order
+    };
+
+    /**
+     * Batch response - results for all commands in batch
+     */
+    struct BatchResponse {
+        DeviceInfo device;
+        Timestamp time_stamp;
+        unsigned long batch_id;
+
+        sequence<TransactionResponse, 16> responses;  // In same order as commands
+    };
+
+};
+

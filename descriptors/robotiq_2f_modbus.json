@@ -1,0 +1,138 @@
+{
+  "metadata": {
+    "name": "Robotiq 2F-85 Gripper",
+    "manufacturer": "Robotiq",
+    "model": "2F-85",
+    "version": "1.0.0",
+    "description": "Adaptive parallel gripper with Modbus RTU interface"
+  },
+  "protocol": {
+    "type": "modbus_rtu",
+    "rtlabs_stack": "mbus",
+    "parameters": {
+      "function_codes": {
+        "read_input_registers": 4,
+        "write_single_register": 6
+      }
+    }
+  },
+  "communication": {
+    "interface": "rs485",
+    "settings": {
+      "device_path": "/dev/ttyUSB0",
+      "baudrate": 115200,
+      "data_bits": 8,
+      "parity": "none",
+      "stop_bits": 1,
+      "slave_address": 9,
+      "response_timeout_ms": 1000
+    }
+  },
+  "registers": {
+    "control": {
+      "action_request": {
+        "address": 1000,
+        "type": "uint16",
+        "access": "rw",
+        "description": "Action register: bit 0=activate, bit 3=go to position"
+      },
+      "gripper_position": {
+        "address": 1003,
+        "type": "uint8",
+        "access": "rw",
+        "unit": "0-255 (0=open, 255=closed)",
+        "min": 0,
+        "max": 255,
+        "default": 0
+      },
+      "gripper_speed": {
+        "address": 1004,
+        "type": "uint8",
+        "access": "rw",
+        "unit": "0-255",
+        "min": 0,
+        "max": 255,
+        "default": 128
+      },
+      "gripper_force": {
+        "address": 1005,
+        "type": "uint8",
+        "access": "rw",
+        "unit": "0-255",
+        "min": 0,
+        "max": 255,
+        "default": 128
+      }
+    },
+    "status": {
+      "gripper_status": {
+        "address": 2000,
+        "type": "uint16",
+        "description": "Status word"
+      },
+      "object_detection": {
+        "address": 2001,
+        "type": "uint8",
+        "description": "Object detection status"
+      },
+      "position_request_echo": {
+        "address": 2003,
+        "type": "uint8"
+      },
+      "actual_position": {
+        "address": 2004,
+        "type": "uint8",
+        "unit": "0-255"
+      },
+      "current": {
+        "address": 2005,
+        "type": "uint8",
+        "unit": "mA"
+      }
+    }
+  },
+  "commands": {
+    "activate": {
+      "description": "Activate the gripper",
+      "parameters": [],
+      "sequence": [
+        {"action": "write_register", "register": "action_request", "value": 0},
+        {"action": "wait", "duration_ms": 100},
+        {"action": "write_register", "register": "action_request", "value": 1}
+      ]
+    },
+    "grip": {
+      "description": "Close gripper with specified force",
+      "parameters": [
+        {"name": "position", "type": "float32", "unit": "0-255", "min": 0, "max": 255, "default": 255},
+        {"name": "speed", "type": "float32", "unit": "0-255", "min": 0, "max": 255, "default": 128},
+        {"name": "force", "type": "float32", "unit": "0-255", "min": 0, "max": 255, "default": 128}
+      ],
+      "sequence": [
+        {"action": "write_register", "register": "gripper_position", "value": "${position}"},
+        {"action": "write_register", "register": "gripper_speed", "value": "${speed}"},
+        {"action": "write_register", "register": "gripper_force", "value": "${force}"},
+        {"action": "write_register", "register": "action_request", "value": 9}
+      ]
+    },
+    "release": {
+      "description": "Open gripper fully",
+      "parameters": [
+        {"name": "speed", "type": "float32", "unit": "0-255", "min": 0, "max": 255, "default": 128}
+      ],
+      "sequence": [
+        {"action": "write_register", "register": "gripper_position", "value": 0},
+        {"action": "write_register", "register": "gripper_speed", "value": "${speed}"},
+        {"action": "write_register", "register": "action_request", "value": 9}
+      ]
+    }
+  },
+  "capabilities": {
+    "max_force_n": 85.0,
+    "max_speed_mm_s": 150.0,
+    "stroke_mm": 85.0,
+    "jaw_count": 2,
+    "has_position_feedback": true,
+    "has_force_feedback": true
+  }
+}

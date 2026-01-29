@@ -1,0 +1,704 @@
+{
+    "general_info": {
+        "protocol": {
+            "name": "modbus/RTU",
+            "slave_id": 1,
+            "baud_rate": 115200,
+            "data_bits": 8,
+            "stop_bits": 1,
+            "parity": 0,
+            "cyclic": false,
+            "cycle_time": 20,
+            "heartbeat": false
+        },
+        "name": "DH-Robotics_CGC-80_RTU",
+        "description": "Collaborative electric gripper by DH-Robotics",
+        "contact": {
+            "author": "Thomas Babu Alappatt",
+            "email": "thomas.alappatt@neura-robotics.com",
+            "company": "Neura Robotics Gmbh"
+        },
+        "file_structure_version": "V2",
+        "file_version": "0.1",
+        "device_type": "GRIPPER",
+        "device_subtype": "ZENTRIC"
+    },
+    "error_handling": {
+        "error_sections": [],
+        "reset_function_name": "Init"
+    },
+    "attributes": [
+        {
+            "name": "getPositionGroup",
+            "modbus_function": "READ_INPUT_REGISTERS",
+            "registers": [
+                {
+                    "name": "getPositionRegister",
+                    "register_address": 514,
+                    "attributes": [
+                        {
+                            "name": "getPosition",
+                            "bit_offset": 0,
+                            "num_bits": 16,
+                            "type": "NONE",
+                            "meta_data": {
+                                "factor": 1,
+                                "timeout": 1000
+                            },
+                            "default_value": 1,
+                            "description": "",
+                            "id": "bf815c91-79d4-44e9-b40d-59205ab4116c"
+                        }
+                    ],
+                    "description": "",
+                    "id": "866b8cb7-7215-4b71-ab29-20c8cbe44ac3"
+                }
+            ],
+            "description": ""
+        },
+        {
+            "name": "getInitStateGroup",
+            "modbus_function": "READ_INPUT_REGISTERS",
+            "registers": [
+                {
+                    "name": "getInitStateRegister",
+                    "register_address": 512,
+                    "attributes": [
+                        {
+                            "name": "getInitState",
+                            "bit_offset": 0,
+                            "num_bits": 16,
+                            "type": "NONE",
+                            "meta_data": {
+                                "factor": 1,
+                                "timeout": 1000
+                            },
+                            "default_value": 1,
+                            "description": "",
+                            "id": "d078f8eb-7ed0-4018-9ed1-2f556586eb39"
+                        }
+                    ],
+                    "description": "",
+                    "id": "e1137be8-4ca8-404b-91f2-872f7b000f00"
+                }
+            ],
+            "description": ""
+        },
+        {
+            "name": "getGripperStateGroup",
+            "modbus_function": "READ_INPUT_REGISTERS",
+            "registers": [
+                {
+                    "name": "getGripperStateRegister",
+                    "register_address": 513,
+                    "attributes": [
+                        {
+                            "name": "getGripperState",
+                            "bit_offset": 0,
+                            "num_bits": 16,
+                            "type": "LIST",
+                            "meta_data": {
+                                "timeout": 10000,
+                                "In motion": 0,
+                                "Reached position": 1,
+                                "Object caught": 2,
+                                "Object dropped": 3
+                            },
+                            "default_value": 1,
+                            "description": "",
+                            "id": "a4b29e44-71d8-485e-8fea-8afe75068afc"
+                        }
+                    ],
+                    "description": "",
+                    "id": "8a991c5c-1634-49b8-9184-2ec856846fb4"
+                }
+            ],
+            "description": ""
+        },
+        {
+            "name": "initGroup",
+            "modbus_function": "WRITE_SINGLE_REGISTER",
+            "registers": [
+                {
+                    "name": "initRegister",
+                    "register_address": 256,
+                    "attributes": [
+                        {
+                            "name": "init",
+                            "bit_offset": 0,
+                            "num_bits": 16,
+                            "type": "LIST",
+                            "meta_data": {
+                                "init": 1,
+                                "full init": 165
+                            },
+                            "default_value": 1,
+                            "description": "",
+                            "id": "edb0b72e-2593-49cf-a347-77a0ebacf0f0"
+                        }
+                    ],
+                    "description": "",
+                    "id": "fe60b8d3-9fed-4f5b-b698-2ff087808cf6"
+                }
+            ],
+            "description": ""
+        },
+        {
+            "name": "setClosingForceGroup",
+            "modbus_function": "WRITE_SINGLE_REGISTER",
+            "registers": [
+                {
+                    "name": "setClosingForceRegister",
+                    "register_address": 257,
+                    "attributes": [
+                        {
+                            "name": "force",
+                            "bit_offset": 0,
+                            "num_bits": 16,
+                            "type": "RANGE",
+                            "meta_data": {
+                                "min": 20,
+                                "max": 100,
+                                "factor": 1,
+                                "unit": "%"
+                            },
+                            "default_value": 1,
+                            "description": "",
+                            "id": "f1a737ca-59aa-4a4f-a95b-bd9233ecafce"
+                        }
+                    ],
+                    "description": "",
+                    "id": "45cd0272-92ac-4b26-b90d-e01f4ea73860"
+                }
+            ],
+            "description": ""
+        },
+        {
+            "name": "setPositionGroup",
+            "modbus_function": "WRITE_SINGLE_REGISTER",
+            "registers": [
+                {
+                    "name": "setPositionRegister",
+                    "register_address": 259,
+                    "attributes": [
+                        {
+                            "name": "width",
+                            "bit_offset": 0,
+                            "num_bits": 16,
+                            "type": "PERCENTAGE_RANGE",
+                            "meta_data": {
+                                "min": 0,
+                                "max": 1000,
+                                "factor": 1,
+                                "unit": "1/10 %",
+                                "offset": 0
+                            },
+                            "default_value": 1,
+                            "description": "",
+                            "id": "2f4c3a51-181d-4dd9-8649-1714c48a7469"
+                        }
+                    ],
+                    "description": "",
+                    "id": "f0162ca8-54eb-4a7a-8823-767a3d4cdd5a"
+                }
+            ],
+            "description": ""
+        },
+        {
+            "name": "setSpeedGroup",
+            "modbus_function": "WRITE_SINGLE_REGISTER",
+            "registers": [
+                {
+                    "name": "setSpeedRegister",
+                    "register_address": 260,
+                    "attributes": [
+                        {
+                            "name": "speed",
+                            "bit_offset": 0,
+                            "num_bits": 16,
+                            "type": "RANGE",
+                            "meta_data": {
+                                "min": 1,
+                                "max": 100,
+                                "factor": 1,
+                                "unit": "%",
+                                "offset": 0
+                            },
+                            "default_value": 1,
+                            "description": "",
+                            "id": "755d880c-445b-4a3a-a071-b3a9b0f7940d"
+                        }
+                    ],
+                    "description": "",
+                    "id": "2fc15329-9ac2-45e1-9d6c-c4bf0cf385ec"
+                }
+            ],
+            "description": ""
+        },
+        {
+            "name": "getClosingForceEchoGroup",
+            "modbus_function": "READ_HOLDING_REGISTERS",
+            "registers": [
+                {
+                    "name": "getForceEchoRegister",
+                    "register_address": 257,
+                    "attributes": [
+                        {
+                            "name": "getForceEcho",
+                            "bit_offset": 0,
+                            "num_bits": 16,
+                            "type": "PERCENTAGE_RANGE",
+                            "meta_data": {
+                                "min": 20,
+                                "max": 100,
+                                "factor": 1,
+                                "unit": "%",
+                                "offset": 0,
+                                "timeout": 1000
+                            },
+                            "default_value": 1,
+                            "id": "f32bb154-4aa3-443b-a67f-fb5e7630768b",
+                            "description": ""
+                        }
+                    ],
+                    "id": "f872a603-a895-473c-afdd-e5aac233fdfa",
+                    "description": ""
+                }
+            ],
+            "description": ""
+        },
+        {
+            "name": "getPositionEchoGroup",
+            "modbus_function": "READ_HOLDING_REGISTERS",
+            "registers": [
+                {
+                    "name": "getPositionEchoRegister",
+                    "register_address": 259,
+                    "attributes": [
+                        {
+                            "name": "getPositionEcho",
+                            "bit_offset": 0,
+                            "num_bits": 16,
+                            "type": "PERCENTAGE_RANGE",
+                            "meta_data": {
+                                "min": 0,
+                                "max": 1000,
+                                "factor": 1,
+                                "unit": "1/10 %",
+                                "offset": 0,
+                                "timeout": 1000
+                            },
+                            "default_value": 1,
+                            "id": "ddab7ffb-c044-41fe-a434-936c39b81817",
+                            "description": ""
+                        }
+                    ],
+                    "id": "bfc29a90-fff3-45cb-a6a8-be84537cf297",
+                    "description": ""
+                }
+            ],
+            "description": ""
+        }
+    ],
+    "wait_attributes": [
+        {
+            "name": "wait_between_commands",
+            "description": "",
+            "type": "WAIT",
+            "meta_data": {
+                "min": 0,
+                "max": 10000,
+                "unit": "ms"
+            }
+        }
+    ],
+    "functions": [
+        {
+            "name": "Init",
+            "description": "",
+            "sequence": [
+                [
+                    {
+                        "initGroup": {
+                            "initRegister": {
+                                "init": "full init"
+                            }
+                        }
+                    }
+                ]
+            ],
+            "parameters": [],
+            "return_parameters": [],
+            "show_on_gui": false
+        },
+        {
+            "name": "returnPosition",
+            "description": "",
+            "sequence": [
+                [
+                    {
+                        "getPositionGroup": {
+                            "getPositionRegister": {
+                                "getPosition": null
+                            }
+                        }
+                    }
+                ]
+            ],
+            "parameters": [],
+            "return_parameters": [],
+            "show_on_gui": false
+        },
+        {
+            "name": "returnInitState",
+            "description": "",
+            "sequence": [
+                [
+                    {
+                        "getInitStateGroup": {
+                            "getInitStateRegister": {
+                                "getInitState": null
+                            }
+                        }
+                    }
+                ]
+            ],
+            "parameters": [],
+            "return_parameters": [],
+            "show_on_gui": false
+        },
+        {
+            "name": "returnGripperState",
+            "description": "",
+            "sequence": [
+                [
+                    {
+                        "getGripperStateGroup": {
+                            "getGripperStateRegister": {
+                                "getGripperState": null
+                            }
+                        }
+                    }
+                ]
+            ],
+            "parameters": [],
+            "return_parameters": [],
+            "show_on_gui": false
+        },
+        {
+            "name": "Safety_Stop",
+            "description": "",
+            "sequence": [
+                [
+                    {
+                        "setClosingForceGroup": {
+                            "setClosingForceRegister": {
+                                "force": 20
+                            }
+                        }
+                    }
+                ],
+                [
+                    {
+                        "setSpeedGroup": {
+                            "setSpeedRegister": {
+                                "speed": 1
+                            }
+                        }
+                    }
+                ]
+            ],
+            "parameters": [],
+            "return_parameters": [],
+            "show_on_gui": false
+        },
+        {
+            "name": "GraspWorkpiece",
+            "description": "",
+            "sequence": [
+                [
+                    {
+                        "setClosingForceGroup": {
+                            "setClosingForceRegister": {
+                                "force": null
+                            }
+                        }
+                    }
+                ],
+                [
+                    {
+                        "setSpeedGroup": {
+                            "setSpeedRegister": {
+                                "speed": null
+                            }
+                        }
+                    }
+                ],
+                [
+                    {
+                        "setPositionGroup": {
+                            "setPositionRegister": {
+                                "width": null
+                            }
+                        }
+                    }
+                ],
+                [
+                    {
+                        "wait_between_commands": 100
+                    }
+                ],
+                [
+                    {
+                        "getGripperStateGroup": {
+                            "getGripperStateRegister": {
+                                "getGripperState": "Object caught"
+                            }
+                        }
+                    }
+                ]
+            ],
+            "parameters": [
+                {
+                    "display_name": "force",
+                    "attribute_name": "force",
+                    "type": "RANGE",
+                    "meta_data": {
+                        "min": 20,
+                        "max": 100,
+                        "factor": 1,
+                        "unit": "%"
+                    },
+                    "description": ""
+                },
+                {
+                    "display_name": "speed",
+                    "attribute_name": "speed",
+                    "description": "",
+                    "type": "RANGE",
+                    "meta_data": {
+                        "min": 1,
+                        "max": 100,
+                        "unit": "%"
+                    }
+                },
+                {
+                    "display_name": "width",
+                    "attribute_name": "width",
+                    "description": "",
+                    "type": "RANGE",
+                    "meta_data": {
+                        "min": 0,
+                        "max": 100,
+                        "unit": "%"
+                    }
+                }
+            ],
+            "return_parameters": [],
+            "show_on_gui": true
+        },
+        {
+            "name": "open",
+            "description": "",
+            "sequence": [
+                [
+                    {
+                        "setClosingForceGroup": {
+                            "setClosingForceRegister": {
+                                "force": null
+                            }
+                        }
+                    }
+                ],
+                [
+                    {
+                        "setSpeedGroup": {
+                            "setSpeedRegister": {
+                                "speed": null
+                            }
+                        }
+                    }
+                ],
+                [
+                    {
+                        "setPositionGroup": {
+                            "setPositionRegister": {
+                                "width": null
+                            }
+                        }
+                    }
+                ],
+                [
+                    {
+                        "wait_between_commands": 100
+                    }
+                ],
+                [
+                    {
+                        "getGripperStateGroup": {
+                            "getGripperStateRegister": {
+                                "getGripperState": "Reached position"
+                            }
+                        }
+                    }
+                ]
+            ],
+            "parameters": [
+                {
+                    "display_name": "force",
+                    "attribute_name": "force",
+                    "description": "",
+                    "type": "RANGE",
+                    "meta_data": {
+                        "min": 20,
+                        "max": 100,
+                        "unit": "%"
+                    }
+                },
+                {
+                    "display_name": "speed",
+                    "attribute_name": "speed",
+                    "description": "",
+                    "type": "RANGE",
+                    "meta_data": {
+                        "min": 1,
+                        "max": 100,
+                        "unit": "%"
+                    }
+                },
+                {
+                    "display_name": "width",
+                    "attribute_name": "width",
+                    "description": "",
+                    "type": "RANGE",
+                    "meta_data": {
+                        "min": 0,
+                        "max": 100,
+                        "unit": "%"
+                    }
+                }
+            ],
+            "return_parameters": [],
+            "show_on_gui": true
+        },
+        {
+            "name": "close",
+            "description": "",
+            "sequence": [
+                [
+                    {
+                        "setClosingForceGroup": {
+                            "setClosingForceRegister": {
+                                "force": null
+                            }
+                        }
+                    }
+                ],
+                [
+                    {
+                        "setSpeedGroup": {
+                            "setSpeedRegister": {
+                                "speed": null
+                            }
+                        }
+                    }
+                ],
+                [
+                    {
+                        "setPositionGroup": {
+                            "setPositionRegister": {
+                                "width": null
+                            }
+                        }
+                    }
+                ]
+            ],
+            "parameters": [
+                {
+                    "display_name": "force",
+                    "attribute_name": "force",
+                    "description": "",
+                    "type": "RANGE",
+                    "meta_data": {
+                        "min": 20,
+                        "max": 100,
+                        "unit": "%"
+                    }
+                },
+                {
+                    "display_name": "speed",
+                    "attribute_name": "speed",
+                    "description": "",
+                    "type": "RANGE",
+                    "meta_data": {
+                        "min": 1,
+                        "max": 100,
+                        "unit": "%"
+                    }
+                },
+                {
+                    "display_name": "width",
+                    "attribute_name": "width",
+                    "description": "",
+                    "type": "RANGE",
+                    "meta_data": {
+                        "min": 0,
+                        "max": 100,
+                        "unit": "%"
+                    }
+                }
+            ],
+            "return_parameters": [],
+            "show_on_gui": true
+        },
+        {
+            "name": "Activate Drop Detection",
+            "description": "",
+            "sequence": [],
+            "parameters": [],
+            "return_parameters": [],
+            "show_on_gui": true
+        },
+        {
+            "name": "Deactivate Drop Detection",
+            "description": "",
+            "sequence": [],
+            "parameters": [],
+            "return_parameters": [],
+            "show_on_gui": true,
+            "num_parameters": 0,
+            "num_return_parameters": 0
+        }
+    ],
+    "signal_observation": {
+        "observed_signals": [
+            {
+                "name": "Object grasped",
+                "description": "",
+                "attribute_name": "getGripperState",
+                "nominal_value": "Object caught"
+            }
+        ],
+        "mapping": {
+            "Activate Drop Detection": [
+                "Object grasped"
+            ]
+        }
+    },
+    "online_monitoring": {
+        "monitored_attributes_map": {
+            "GraspWorkpiece": [
+                "getPosition",
+                "getGripperState"
+            ],
+            "open": [
+                "getPosition",
+                "getGripperState"
+            ],
+            "close": [
+                "getPosition",
+                "getGripperState"
+            ]
+        }
+    }
+}
