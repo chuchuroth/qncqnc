@@ -2,7 +2,6 @@
 ```
 git clone -b modbus_rtu_protocol --single-branch  
 cd modbus_rtu_protocol/modbus_rtu_protocol
-./scripts/build.sh
 ```
 
 
