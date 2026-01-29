@@ -1,0 +1,420 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neurasync.io/schemas/modbus-rtu-device-descriptor.json",
+  "title": "ModbusRTU Device Descriptor Schema",
+  "description": "JSON schema for describing ModbusRTU devices to the NeuraSync robot platform. This schema defines how raw Modbus register/coil values should be interpreted.",
+  "type": "object",
+  "required": ["schema_version", "device", "registers"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for forward compatibility"
+    },
+
+    "device": {
+      "type": "object",
+      "description": "Device identification and metadata",
+      "required": ["device_type", "manufacturer", "model"],
+      "properties": {
+        "device_type": {
+          "type": "string",
+          "description": "Unique device type identifier",
+          "examples": ["DH_AG95", "DH_CGC80", "ROBOTIQ_2F85", "SCHMALZ_VACUUM"]
+        },
+        "manufacturer": {
+          "type": "string",
+          "description": "Device manufacturer name"
+        },
+        "model": {
+          "type": "string",
+          "description": "Device model number/name"
+        },
+        "firmware_version": {
+          "type": "string",
+          "description": "Optional firmware version"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable device description"
+        }
+      }
+    },
+
+    "communication": {
+      "type": "object",
+      "description": "Default communication settings",
+      "properties": {
+        "default_baudrate": {
+          "type": "integer",
+          "enum": [9600, 19200, 38400, 57600, 115200],
+          "default": 115200
+        },
+        "default_slave_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 247,
+          "default": 1
+        },
+        "parity": {
+          "type": "string",
+          "enum": ["none", "odd", "even"],
+          "default": "none"
+        },
+        "data_bits": {
+          "type": "integer",
+          "enum": [7, 8],
+          "default": 8
+        },
+        "stop_bits": {
+          "type": "integer",
+          "enum": [1, 2],
+          "default": 1
+        },
+        "response_timeout_ms": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 5000,
+          "default": 100
+        },
+        "inter_frame_delay_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "default": 50
+        }
+      }
+    },
+
+    "registers": {
+      "type": "object",
+      "description": "Register mappings organized by Modbus function code",
+      "properties": {
+        "holding": {
+          "type": "array",
+          "description": "Holding registers (FC 0x03 read, FC 0x06/0x10 write)",
+          "items": { "$ref": "#/$defs/register" }
+        },
+        "input": {
+          "type": "array",
+          "description": "Input registers (FC 0x04 read-only)",
+          "items": { "$ref": "#/$defs/register" }
+        },
+        "coils": {
+          "type": "array",
+          "description": "Coils (FC 0x01 read, FC 0x05/0x0F write)",
+          "items": { "$ref": "#/$defs/coil" }
+        },
+        "discrete_inputs": {
+          "type": "array",
+          "description": "Discrete inputs (FC 0x02 read-only)",
+          "items": { "$ref": "#/$defs/coil" }
+        }
+      }
+    },
+
+    "computed_fields": {
+      "type": "array",
+      "description": "Fields computed from multiple registers",
+      "items": { "$ref": "#/$defs/computed_field" }
+    },
+
+    "commands": {
+      "type": "object",
+      "description": "High-level commands that map to register write sequences",
+      "additionalProperties": { "$ref": "#/$defs/command" }
+    },
+
+    "state_machine": {
+      "type": "object",
+      "description": "Optional state machine definition for device states",
+      "properties": {
+        "state_register": {
+          "type": "string",
+          "description": "Name of the register that holds device state"
+        },
+        "states": {
+          "type": "object",
+          "description": "Map of state values to state names",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "capabilities": {
+      "type": "object",
+      "description": "Device capabilities and limits",
+      "additionalProperties": true,
+      "examples": [{
+        "max_force_n": 140,
+        "max_speed_mm_s": 100,
+        "stroke_mm": 95,
+        "has_force_feedback": true,
+        "has_position_feedback": true
+      }]
+    },
+
+    "polling": {
+      "type": "object",
+      "description": "Recommended polling configuration",
+      "properties": {
+        "status_interval_ms": {
+          "type": "integer",
+          "description": "Recommended interval for status register polling",
+          "default": 50
+        },
+        "command_feedback_interval_ms": {
+          "type": "integer",
+          "description": "Interval for polling after command execution",
+          "default": 20
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "register": {
+      "type": "object",
+      "required": ["address", "name", "type"],
+      "properties": {
+        "address": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535,
+          "description": "Register address"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Unique field name (snake_case)"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["uint16", "int16", "uint32", "int32", "float32", "bool"],
+          "description": "Data type. uint32/int32/float32 span 2 consecutive registers"
+        },
+        "access": {
+          "type": "string",
+          "enum": ["ro", "wo", "rw"],
+          "default": "rw",
+          "description": "Access mode: read-only, write-only, read-write"
+        },
+        "unit": {
+          "type": "string",
+          "description": "Physical unit (e.g., 'mm', 'N', 'percent', 'permille')"
+        },
+        "scale": {
+          "type": "number",
+          "default": 1.0,
+          "description": "Scale factor: physical_value = raw_value * scale + offset"
+        },
+        "offset": {
+          "type": "number",
+          "default": 0.0,
+          "description": "Offset: physical_value = raw_value * scale + offset"
+        },
+        "min": {
+          "type": "number",
+          "description": "Minimum valid value (after scaling)"
+        },
+        "max": {
+          "type": "number",
+          "description": "Maximum valid value (after scaling)"
+        },
+        "default": {
+          "type": "number",
+          "description": "Default value for writes"
+        },
+        "enum": {
+          "type": "object",
+          "description": "Map of named values to raw register values",
+          "additionalProperties": { "type": "integer" },
+          "examples": [{
+            "idle": 0,
+            "moving": 1,
+            "gripping": 2,
+            "holding": 3
+          }]
+        },
+        "bit_field": {
+          "type": "array",
+          "description": "Bit field definitions within the register",
+          "items": {
+            "type": "object",
+            "required": ["name", "bit", "width"],
+            "properties": {
+              "name": { "type": "string" },
+              "bit": { "type": "integer", "minimum": 0, "maximum": 15 },
+              "width": { "type": "integer", "minimum": 1, "maximum": 16 },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        }
+      }
+    },
+
+    "coil": {
+      "type": "object",
+      "required": ["address", "name"],
+      "properties": {
+        "address": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "access": {
+          "type": "string",
+          "enum": ["ro", "wo", "rw"],
+          "default": "rw"
+        },
+        "active_low": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, logical true = coil off"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+
+    "computed_field": {
+      "type": "object",
+      "required": ["name", "type", "formula"],
+      "description": "Field computed from other register values",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["float", "int", "bool", "string"]
+        },
+        "unit": {
+          "type": "string"
+        },
+        "formula": {
+          "type": "string",
+          "description": "Expression using register names. E.g., 'position_raw * 0.095' or 'state == 2'",
+          "examples": [
+            "position_raw * 0.095",
+            "force_high << 16 | force_low",
+            "state == 2 || state == 3"
+          ]
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+
+    "command": {
+      "type": "object",
+      "required": ["sequence"],
+      "description": "High-level command definition",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "description": "Command parameters",
+          "items": {
+            "type": "object",
+            "required": ["name", "type"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["float", "int", "bool"]
+              },
+              "unit": {
+                "type": "string"
+              },
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "default": {
+                "type": "number"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "sequence": {
+          "type": "array",
+          "description": "Sequence of register writes to execute",
+          "items": {
+            "type": "object",
+            "required": ["action"],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": ["write_register", "write_coil", "wait_ms", "wait_for_state"]
+              },
+              "register": {
+                "type": "string",
+                "description": "Register name (for write_register)"
+              },
+              "coil": {
+                "type": "string",
+                "description": "Coil name (for write_coil)"
+              },
+              "value": {
+                "oneOf": [
+                  { "type": "number" },
+                  { "type": "boolean" },
+                  { "type": "string", "pattern": "^\\$\\{[a-z_]+\\}$" }
+                ],
+                "description": "Value to write. Use ${param_name} for parameter substitution"
+              },
+              "duration_ms": {
+                "type": "integer",
+                "description": "Duration for wait_ms action"
+              },
+              "state_register": {
+                "type": "string",
+                "description": "Register name for wait_for_state"
+              },
+              "expected_value": {
+                "type": "integer",
+                "description": "Expected value for wait_for_state"
+              },
+              "timeout_ms": {
+                "type": "integer",
+                "description": "Timeout for wait_for_state"
+              }
+            }
+          }
+        },
+        "expected_states": {
+          "type": "array",
+          "description": "Valid device states to execute this command",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

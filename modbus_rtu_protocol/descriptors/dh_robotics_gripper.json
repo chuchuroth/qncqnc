@@ -1,0 +1,163 @@
+{
+  "metadata": {
+    "name": "DH Robotics Gripper",
+    "manufacturer": "DH-Robotics",
+    "model": "AG-95/PGE",
+    "version": "1.0.0",
+    "description": "DH Robotics adaptive/parallel gripper with Modbus RTU interface"
+  },
+  "protocol": {
+    "type": "modbus_rtu",
+    "rtlabs_stack": "mbus",
+    "parameters": {
+      "function_codes": {
+        "read_holding_registers": 3,
+        "write_single_register": 6,
+        "write_multiple_registers": 16
+      }
+    }
+  },
+  "communication": {
+    "interface": "rs485",
+    "settings": {
+      "device_path": "/dev/ttyUSB0",
+      "baudrate": 115200,
+      "data_bits": 8,
+      "parity": "none",
+      "stop_bits": 1,
+      "slave_address": 1,
+      "response_timeout_ms": 500
+    }
+  },
+  "registers": {
+    "control": {
+      "initialization": {
+        "address": 256,
+        "hex_address": "0x0100",
+        "type": "uint16",
+        "access": "rw",
+        "description": "Initialization: 0x01=init, 0xA5=full init"
+      },
+      "force": {
+        "address": 257,
+        "hex_address": "0x0101",
+        "type": "uint16",
+        "access": "rw",
+        "unit": "percent",
+        "min": 20,
+        "max": 100,
+        "default": 50,
+        "description": "Gripping force percentage"
+      },
+      "speed": {
+        "address": 258,
+        "hex_address": "0x0102",
+        "type": "uint16",
+        "access": "rw",
+        "unit": "percent",
+        "min": 1,
+        "max": 100,
+        "default": 50,
+        "description": "Movement speed percentage"
+      },
+      "position": {
+        "address": 259,
+        "hex_address": "0x0103",
+        "type": "uint16",
+        "access": "rw",
+        "unit": "permille",
+        "min": 0,
+        "max": 1000,
+        "default": 0,
+        "description": "Target position (0=open, 1000=closed)"
+      }
+    },
+    "status": {
+      "init_state": {
+        "address": 512,
+        "hex_address": "0x0200",
+        "type": "uint16",
+        "description": "Init state: 0=not init, 1=initializing, 2=initialized"
+      },
+      "gripper_state": {
+        "address": 513,
+        "hex_address": "0x0201",
+        "type": "uint16",
+        "description": "State: 0=moving, 1=reached, 2=caught object, 3=dropped object"
+      },
+      "position_feedback": {
+        "address": 514,
+        "hex_address": "0x0202",
+        "type": "uint16",
+        "unit": "permille",
+        "description": "Current position feedback (0-1000)"
+      }
+    }
+  },
+  "commands": {
+    "initialize": {
+      "description": "Initialize the gripper",
+      "parameters": [],
+      "sequence": [
+        {"action": "write_register", "register": "initialization", "value": 165}
+      ]
+    },
+    "grip": {
+      "description": "Close gripper to grip object",
+      "parameters": [
+        {"name": "force", "type": "float32", "unit": "percent", "min": 20, "max": 100, "default": 50},
+        {"name": "speed", "type": "float32", "unit": "percent", "min": 1, "max": 100, "default": 50}
+      ],
+      "sequence": [
+        {"action": "write_register", "register": "force", "value": "${force}"},
+        {"action": "write_register", "register": "speed", "value": "${speed}"},
+        {"action": "write_register", "register": "position", "value": 1000}
+      ]
+    },
+    "release": {
+      "description": "Open gripper to release object",
+      "parameters": [
+        {"name": "speed", "type": "float32", "unit": "percent", "min": 1, "max": 100, "default": 50}
+      ],
+      "sequence": [
+        {"action": "write_register", "register": "speed", "value": "${speed}"},
+        {"action": "write_register", "register": "position", "value": 0}
+      ]
+    },
+    "move_to_position": {
+      "description": "Move gripper to specific position",
+      "parameters": [
+        {"name": "position", "type": "float32", "unit": "permille", "min": 0, "max": 1000},
+        {"name": "speed", "type": "float32", "unit": "percent", "min": 1, "max": 100, "default": 50}
+      ],
+      "sequence": [
+        {"action": "write_register", "register": "speed", "value": "${speed}"},
+        {"action": "write_register", "register": "position", "value": "${position}"}
+      ]
+    },
+    "stop": {
+      "description": "Stop gripper movement",
+      "parameters": [],
+      "sequence": [
+        {"action": "read_register", "register": "position_feedback"},
+        {"action": "write_register", "register": "position", "value": "${position_feedback}"}
+      ]
+    }
+  },
+  "safety": {
+    "max_force_percent": 100,
+    "safe_state": {
+      "speed": 20,
+      "force": 30
+    }
+  },
+  "capabilities": {
+    "max_force_n": 140.0,
+    "max_speed_mm_s": 110.0,
+    "stroke_mm": 95.0,
+    "jaw_count": 2,
+    "has_position_feedback": true,
+    "has_force_feedback": false,
+    "has_object_detection": true
+  }
+}

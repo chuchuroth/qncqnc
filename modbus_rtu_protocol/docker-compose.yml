@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # ModbusRTU Protocol - Runtime Service
+  modbus-rtu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        BUILD_WITH_DDS: "OFF"
+    image: modbus-rtu-protocol:latest
+    container_name: modbus-rtu
+    # Grant access to serial devices
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    # Alternative: use privileged mode for all devices
+    # privileged: true
+    environment:
+      - MODBUS_PORT=/dev/ttyUSB0
+      - MODBUS_SLAVE_ID=1
+      - MODBUS_BAUDRATE=115200
+    volumes:
+      # Mount custom device descriptors
+      - ./descriptors:/opt/modbus_rtu/share/descriptors:ro
+    # Override default command
+    command: ["/dev/ttyUSB0", "1", "115200"]
+    restart: unless-stopped
+
+  # Development environment
+  modbus-rtu-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+      args:
+        BUILD_WITH_DDS: "OFF"
+    image: modbus-rtu-protocol:dev
+    container_name: modbus-rtu-dev
+    privileged: true
+    stdin_open: true
+    tty: true
+    volumes:
+      # Mount source for live development
+      - .:/workspace
+      - /dev:/dev
+    working_dir: /workspace
+    command: /bin/bash
+
+  # ModbusRTU with DDS support
+  modbus-rtu-dds:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        BUILD_WITH_DDS: "ON"
+    image: modbus-rtu-protocol:dds
+    container_name: modbus-rtu-dds
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    environment:
+      - FASTDDS_DEFAULT_PROFILES_FILE=/opt/modbus_rtu/share/dds_profiles.xml
+    volumes:
+      - ./descriptors:/opt/modbus_rtu/share/descriptors:ro
+    network_mode: host
+    command: ["/dev/ttyUSB0", "1", "115200"]
+    profiles:
+      - dds

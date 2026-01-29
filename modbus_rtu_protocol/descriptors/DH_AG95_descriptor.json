@@ -1,0 +1,241 @@
+{
+  "schema_version": "1.0",
+
+  "device": {
+    "device_type": "DH_AG95",
+    "manufacturer": "DH-Robotics",
+    "model": "AG-95",
+    "firmware_version": "1.0",
+    "description": "DH-Robotics AG-95 Electric Parallel Gripper with 95mm stroke"
+  },
+
+  "communication": {
+    "default_baudrate": 115200,
+    "default_slave_id": 1,
+    "parity": "none",
+    "data_bits": 8,
+    "stop_bits": 1,
+    "response_timeout_ms": 100,
+    "inter_frame_delay_ms": 50
+  },
+
+  "registers": {
+    "holding": [
+      {
+        "address": 256,
+        "name": "init_command",
+        "type": "uint16",
+        "access": "wo",
+        "enum": {
+          "init": 1,
+          "full_init": 165
+        },
+        "description": "Initialization command (0x01=init, 0xA5=full init with calibration)"
+      },
+      {
+        "address": 257,
+        "name": "force_percent",
+        "type": "uint16",
+        "access": "rw",
+        "unit": "percent",
+        "min": 20,
+        "max": 100,
+        "default": 50,
+        "description": "Gripping force as percentage of maximum (20-100%)"
+      },
+      {
+        "address": 258,
+        "name": "speed_percent",
+        "type": "uint16",
+        "access": "rw",
+        "unit": "percent",
+        "min": 1,
+        "max": 100,
+        "default": 50,
+        "description": "Movement speed as percentage of maximum (1-100%)"
+      },
+      {
+        "address": 259,
+        "name": "target_position",
+        "type": "uint16",
+        "access": "rw",
+        "unit": "permille",
+        "scale": 1.0,
+        "min": 0,
+        "max": 1000,
+        "default": 0,
+        "description": "Target position in permille (0=fully open, 1000=fully closed)"
+      }
+    ],
+
+    "input": [
+      {
+        "address": 512,
+        "name": "init_state",
+        "type": "uint16",
+        "access": "ro",
+        "enum": {
+          "not_initialized": 0,
+          "initializing": 1,
+          "initialized": 2
+        },
+        "description": "Initialization state of the gripper"
+      },
+      {
+        "address": 513,
+        "name": "gripper_state",
+        "type": "uint16",
+        "access": "ro",
+        "enum": {
+          "in_motion": 0,
+          "position_reached": 1,
+          "object_caught": 2,
+          "object_dropped": 3
+        },
+        "description": "Current operational state of the gripper"
+      },
+      {
+        "address": 514,
+        "name": "current_position",
+        "type": "uint16",
+        "access": "ro",
+        "unit": "permille",
+        "scale": 1.0,
+        "min": 0,
+        "max": 1000,
+        "description": "Current position feedback in permille (0=open, 1000=closed)"
+      }
+    ]
+  },
+
+  "computed_fields": [
+    {
+      "name": "position_mm",
+      "type": "float",
+      "unit": "mm",
+      "formula": "(1000 - current_position) * 0.095",
+      "description": "Current jaw opening in millimeters (0-95mm)"
+    },
+    {
+      "name": "target_mm",
+      "type": "float",
+      "unit": "mm",
+      "formula": "(1000 - target_position) * 0.095",
+      "description": "Target jaw opening in millimeters"
+    },
+    {
+      "name": "is_holding_object",
+      "type": "bool",
+      "formula": "gripper_state == 2",
+      "description": "True if gripper has caught an object"
+    },
+    {
+      "name": "is_ready",
+      "type": "bool",
+      "formula": "init_state == 2",
+      "description": "True if gripper is initialized and ready"
+    }
+  ],
+
+  "commands": {
+    "initialize": {
+      "description": "Initialize the gripper (required before use)",
+      "sequence": [
+        { "action": "write_register", "register": "init_command", "value": 1 },
+        { "action": "wait_for_state", "state_register": "init_state", "expected_value": 2, "timeout_ms": 10000 }
+      ]
+    },
+
+    "full_calibration": {
+      "description": "Full initialization with mechanical calibration",
+      "sequence": [
+        { "action": "write_register", "register": "init_command", "value": 165 },
+        { "action": "wait_for_state", "state_register": "init_state", "expected_value": 2, "timeout_ms": 15000 }
+      ]
+    },
+
+    "grip": {
+      "description": "Close gripper to grip an object",
+      "parameters": [
+        { "name": "force", "type": "float", "unit": "percent", "min": 20, "max": 100, "default": 50, "description": "Gripping force percentage" },
+        { "name": "speed", "type": "float", "unit": "percent", "min": 1, "max": 100, "default": 50, "description": "Movement speed percentage" }
+      ],
+      "sequence": [
+        { "action": "write_register", "register": "force_percent", "value": "${force}" },
+        { "action": "write_register", "register": "speed_percent", "value": "${speed}" },
+        { "action": "write_register", "register": "target_position", "value": 1000 }
+      ],
+      "expected_states": ["initialized"]
+    },
+
+    "release": {
+      "description": "Open gripper to release object",
+      "parameters": [
+        { "name": "speed", "type": "float", "unit": "percent", "min": 1, "max": 100, "default": 50, "description": "Movement speed percentage" }
+      ],
+      "sequence": [
+        { "action": "write_register", "register": "speed_percent", "value": "${speed}" },
+        { "action": "write_register", "register": "target_position", "value": 0 }
+      ],
+      "expected_states": ["initialized"]
+    },
+
+    "move_to_position": {
+      "description": "Move gripper to a specific position",
+      "parameters": [
+        { "name": "position_permille", "type": "int", "unit": "permille", "min": 0, "max": 1000, "description": "Target position (0=open, 1000=closed)" },
+        { "name": "force", "type": "float", "unit": "percent", "min": 20, "max": 100, "default": 50, "description": "Gripping force percentage" },
+        { "name": "speed", "type": "float", "unit": "percent", "min": 1, "max": 100, "default": 50, "description": "Movement speed percentage" }
+      ],
+      "sequence": [
+        { "action": "write_register", "register": "force_percent", "value": "${force}" },
+        { "action": "write_register", "register": "speed_percent", "value": "${speed}" },
+        { "action": "write_register", "register": "target_position", "value": "${position_permille}" }
+      ],
+      "expected_states": ["initialized"]
+    },
+
+    "move_to_mm": {
+      "description": "Move gripper to a specific opening in millimeters",
+      "parameters": [
+        { "name": "opening_mm", "type": "float", "unit": "mm", "min": 0, "max": 95, "description": "Target jaw opening in millimeters" },
+        { "name": "force", "type": "float", "unit": "percent", "min": 20, "max": 100, "default": 50, "description": "Gripping force percentage" },
+        { "name": "speed", "type": "float", "unit": "percent", "min": 1, "max": 100, "default": 50, "description": "Movement speed percentage" }
+      ],
+      "sequence": [
+        { "action": "write_register", "register": "force_percent", "value": "${force}" },
+        { "action": "write_register", "register": "speed_percent", "value": "${speed}" },
+        { "action": "write_register", "register": "target_position", "value": "1000 - (${opening_mm} / 0.095)" }
+      ],
+      "expected_states": ["initialized"]
+    }
+  },
+
+  "state_machine": {
+    "state_register": "gripper_state",
+    "states": {
+      "0": { "name": "in_motion", "description": "Gripper is currently moving" },
+      "1": { "name": "position_reached", "description": "Gripper has reached target position (no object)" },
+      "2": { "name": "object_caught", "description": "Gripper has gripped an object" },
+      "3": { "name": "object_dropped", "description": "Gripper detected object loss" }
+    }
+  },
+
+  "capabilities": {
+    "max_force_n": 140,
+    "min_force_n": 28,
+    "max_speed_mm_s": 100,
+    "stroke_mm": 95,
+    "max_payload_kg": 3,
+    "repeat_accuracy_mm": 0.03,
+    "has_force_feedback": false,
+    "has_position_feedback": true,
+    "has_object_detection": true,
+    "jaw_type": "parallel"
+  },
+
+  "polling": {
+    "status_interval_ms": 50,
+    "command_feedback_interval_ms": 20
+  }
+}
