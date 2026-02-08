@@ -2,17 +2,35 @@
 build/
 cmake-build-*/
 
+# Dependencies (fetched separately or via Docker)
+neura-sync/
+neura_sync_idl_tools/
+
 # IDE
 .idea/
 .vscode/
 *.swp
 *~
 
-# Compiled
+# Compiled binaries
 *.o
 *.a
 *.so
 *.dylib
 
-# Generated files
+# Generated files (IDL compilation)
 generated/
+
+# ImGui state
+imgui.ini
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Docker cache
+.docker/
+
+# Temporary files
+*.tmp
+*.log

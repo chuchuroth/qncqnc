@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Options
 option(BUILD_EXAMPLES "Build example applications" ON)
 option(BUILD_WITH_DDS "Build with FastDDS support (generates IDL types)" OFF)
+option(BUILD_WITH_NEURASYNC "Build with NeuraSync support" OFF)
 option(ENABLE_LOGGING "Enable debug logging" OFF)
 
 # Logging flag
@@ -30,6 +31,54 @@ if(BUILD_EXAMPLES)
     add_executable(modbus_rtu_example examples/modbus_rtu_example.cpp)
     target_link_libraries(modbus_rtu_example PRIVATE modbus_rtu Threads::Threads)
     target_compile_definitions(modbus_rtu_example PRIVATE ENABLE_MODBUS_RTU_LOGGING)
+
+    # gripper_control with optional NeuraSync or DDS support
+    if(BUILD_WITH_NEURASYNC)
+        # Link directly to installed neura_sync libraries (FastDDS 3.x)
+        add_executable(gripper_control examples/gripper_control.cpp)
+        target_include_directories(gripper_control PRIVATE /usr/include /usr/local/include)
+        target_link_libraries(gripper_control PRIVATE
+            modbus_rtu
+            Threads::Threads
+            neura_sync
+            neura_sync_utils
+            neura_sync_config
+            neura_sync_core_msgs
+            fastcdr
+            fastdds
+            yaml-cpp
+            boost_filesystem
+        )
+        target_compile_definitions(gripper_control PRIVATE ENABLE_MODBUS_RTU_LOGGING BUILD_WITH_NEURASYNC)
+
+        # Dashboard subscriber for gripper state
+        add_executable(gripper_dashboard examples/gripper_dashboard.cpp)
+        target_include_directories(gripper_dashboard PRIVATE /usr/include /usr/local/include)
+        target_link_libraries(gripper_dashboard PRIVATE
+            Threads::Threads
+            neura_sync
+            neura_sync_utils
+            neura_sync_config
+            neura_sync_core_msgs
+            fastcdr
+            fastdds
+            yaml-cpp
+            boost_filesystem
+        )
+    elseif(BUILD_WITH_DDS)
+        add_executable(gripper_control
+            examples/gripper_control.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/generated/ModbusRTU.cxx
+            ${CMAKE_CURRENT_SOURCE_DIR}/generated/ModbusRTUPubSubTypes.cxx
+        )
+        target_include_directories(gripper_control PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/generated)
+        target_link_libraries(gripper_control PRIVATE modbus_rtu Threads::Threads fastcdr fastdds)
+        target_compile_definitions(gripper_control PRIVATE ENABLE_MODBUS_RTU_LOGGING BUILD_WITH_DDS)
+    else()
+        add_executable(gripper_control examples/gripper_control.cpp)
+        target_link_libraries(gripper_control PRIVATE modbus_rtu Threads::Threads)
+        target_compile_definitions(gripper_control PRIVATE ENABLE_MODBUS_RTU_LOGGING)
+    endif()
 endif()
 
 # FastDDS IDL generation (optional)
@@ -77,7 +126,10 @@ install(DIRECTORY schemas/ DESTINATION share/schemas)
 install(DIRECTORY descriptors/ DESTINATION share/descriptors)
 
 if(BUILD_EXAMPLES)
-    install(TARGETS modbus_rtu_example DESTINATION bin)
+    install(TARGETS modbus_rtu_example gripper_control DESTINATION bin)
+    if(BUILD_WITH_NEURASYNC)
+        install(TARGETS gripper_dashboard DESTINATION bin)
+    endif()
 endif()
 
 # Package configuration
@@ -91,8 +143,9 @@ write_basic_package_version_file(
 # Summary
 message(STATUS "")
 message(STATUS "ModbusRTU Protocol Configuration:")
-message(STATUS "  Version:       ${PROJECT_VERSION}")
-message(STATUS "  Build examples: ${BUILD_EXAMPLES}")
-message(STATUS "  Build with DDS: ${BUILD_WITH_DDS}")
-message(STATUS "  Enable logging: ${ENABLE_LOGGING}")
+message(STATUS "  Version:          ${PROJECT_VERSION}")
+message(STATUS "  Build examples:   ${BUILD_EXAMPLES}")
+message(STATUS "  Build with DDS:   ${BUILD_WITH_DDS}")
+message(STATUS "  Build with NeuraSync: ${BUILD_WITH_NEURASYNC}")
+message(STATUS "  Enable logging:   ${ENABLE_LOGGING}")
 message(STATUS "")
