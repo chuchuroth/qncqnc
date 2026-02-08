@@ -1,69 +1,45 @@
 version: '3.8'
 
 services:
-  # ModbusRTU Protocol - Runtime Service
-  modbus-rtu:
+  # Gripper Control - Publisher (connects to gripper via RS485)
+  gripper-control:
+    image: modbus-rtu-protocol:neurasync
     build:
       context: .
       dockerfile: Dockerfile
-      target: runtime
-      args:
-        BUILD_WITH_DDS: "OFF"
-    image: modbus-rtu-protocol:latest
-    container_name: modbus-rtu
-    # Grant access to serial devices
+    container_name: gripper-control
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
-    # Alternative: use privileged mode for all devices
-    # privileged: true
+    network_mode: host
     environment:
-      - MODBUS_PORT=/dev/ttyUSB0
-      - MODBUS_SLAVE_ID=1
-      - MODBUS_BAUDRATE=115200
-    volumes:
-      # Mount custom device descriptors
-      - ./descriptors:/opt/modbus_rtu/share/descriptors:ro
-    # Override default command
-    command: ["/dev/ttyUSB0", "1", "115200"]
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/dev/null
+    command: ["gripper_control", "/dev/ttyUSB0", "1", "115200", "gripper_01"]
     restart: unless-stopped
 
-  # Development environment
-  modbus-rtu-dev:
+  # Gripper Dashboard - Subscriber (displays gripper state)
+  gripper-dashboard:
+    image: modbus-rtu-protocol:neurasync
     build:
       context: .
       dockerfile: Dockerfile
-      target: development
-      args:
-        BUILD_WITH_DDS: "OFF"
-    image: modbus-rtu-protocol:dev
-    container_name: modbus-rtu-dev
-    privileged: true
-    stdin_open: true
-    tty: true
-    volumes:
-      # Mount source for live development
-      - .:/workspace
-      - /dev:/dev
-    working_dir: /workspace
-    command: /bin/bash
+    container_name: gripper-dashboard
+    network_mode: host
+    environment:
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/dev/null
+    command: ["gripper_dashboard"]
+    restart: unless-stopped
+    depends_on:
+      - gripper-control
 
-  # ModbusRTU with DDS support
-  modbus-rtu-dds:
+  # Basic ModbusRTU example (no NeuraSync)
+  modbus-example:
+    image: modbus-rtu-protocol:neurasync
     build:
       context: .
       dockerfile: Dockerfile
-      target: runtime
-      args:
-        BUILD_WITH_DDS: "ON"
-    image: modbus-rtu-protocol:dds
-    container_name: modbus-rtu-dds
+    container_name: modbus-example
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
-    environment:
-      - FASTDDS_DEFAULT_PROFILES_FILE=/opt/modbus_rtu/share/dds_profiles.xml
-    volumes:
-      - ./descriptors:/opt/modbus_rtu/share/descriptors:ro
-    network_mode: host
-    command: ["/dev/ttyUSB0", "1", "115200"]
+    command: ["modbus_rtu_example", "/dev/ttyUSB0", "1"]
     profiles:
-      - dds
+      - example

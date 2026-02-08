@@ -92,12 +92,26 @@ def send_command(ser, command, description=""):
     ser.write(command)
     ser.flush()
 
-    time.sleep(0.15)  # Wait for response
+    # Wait for the ESP32 to process and forward the response
+    time.sleep(0.4)
 
-    response = ser.read(256)
+    response = ser.read(ser.in_waiting) if ser.in_waiting else b''
     if response:
-        print(f"    RX: {response.hex(' ')}")
-        return response
+        # Filter out any ASCII text (boot noise / debug output)
+        # Valid Modbus RTU responses start with the slave ID byte
+        expected_slave = command[0]
+        if len(response) >= 5 and response[0] == expected_slave:
+            print(f"    RX: {response.hex(' ')}")
+            return response
+        else:
+            # Not a valid Modbus response - likely noise
+            try:
+                text = response.decode('ascii', errors='ignore').strip()
+                if text:
+                    print(f"    RX: (non-Modbus data: {text[:60]})")
+            except:
+                print(f"    RX: (invalid data, {len(response)} bytes)")
+            return None
     else:
         print("    RX: No response (timeout)")
         return None
@@ -105,18 +119,21 @@ def send_command(ser, command, description=""):
 
 def parse_read_response(response):
     """Parse a read registers response and return the values"""
-    if response and len(response) >= 5:
-        # Check for error response
-        if response[1] & 0x80:
-            print(f"    Error: Exception code {response[2]}")
-            return None
-        byte_count = response[2]
-        values = []
-        for i in range(byte_count // 2):
-            val = struct.unpack('>H', response[3 + i*2:5 + i*2])[0]
-            values.append(val)
-        return values
-    return None
+    if not response or len(response) < 5:
+        return None
+    # Check for error response
+    if response[1] & 0x80:
+        print(f"    Error: Exception code {response[2]}")
+        return None
+    byte_count = response[2]
+    if len(response) < 3 + byte_count + 2:  # header + data + CRC
+        print(f"    Warning: Short response ({len(response)} bytes)")
+        return None
+    values = []
+    for i in range(byte_count // 2):
+        val = struct.unpack('>H', response[3 + i*2:5 + i*2])[0]
+        values.append(val)
+    return values
 
 
 def initialize_gripper(ser, full_init=True):
@@ -203,6 +220,39 @@ def close_gripper(ser):
     return set_position(ser, 1000)
 
 
+def wait_for_boot(ser, timeout=10):
+    """Wait for ESP32 READY marker, draining boot noise"""
+    print("Waiting for ESP32 READY signal...")
+
+    # Reset ESP32
+    ser.setDTR(False)
+    ser.setRTS(True)
+    time.sleep(0.1)
+    ser.setRTS(False)
+
+    start = time.time()
+    buf = b''
+    while time.time() - start < timeout:
+        if ser.in_waiting:
+            buf += ser.read(ser.in_waiting)
+            # Check for READY marker in accumulated data
+            if b'READY' in buf:
+                # Drain any trailing boot noise thoroughly
+                time.sleep(0.5)
+                ser.reset_input_buffer()
+                time.sleep(0.5)
+                if ser.in_waiting:
+                    ser.read(ser.in_waiting)
+                ser.reset_input_buffer()
+                print("ESP32 ready.\n")
+                return True
+        time.sleep(0.05)
+
+    print("WARNING: READY signal not received, proceeding anyway...")
+    ser.reset_input_buffer()
+    return False
+
+
 def main():
     print("=" * 50)
     print("DH Gripper Control via Modbus RTU")
@@ -222,9 +272,8 @@ def main():
         )
         print(f"\nConnected to {SERIAL_PORT}")
 
-        # Wait for ESP32 to be ready
-        time.sleep(0.5)
-        ser.reset_input_buffer()
+        # Wait for ESP32 to boot and clear all startup noise
+        wait_for_boot(ser)
 
         # Read initial status
         print("\n" + "-" * 50)
