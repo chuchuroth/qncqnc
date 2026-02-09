@@ -1,0 +1,31 @@
+/**
+ * GripperState.idl
+ *
+ * Simple gripper state message for DH gripper publishing
+ */
+
+module GripperState {
+    /**
+     * Gripper device state message
+     */
+    struct DeviceState {
+        string device_id;          // Device identifier (e.g., "gripper_01")
+
+        // Timestamp
+        unsigned long timestamp_sec;   // Seconds since epoch
+        unsigned long timestamp_nsec;  // Nanoseconds
+
+        // Gripper state
+        octet init_state;           // Initialization state (0-2)
+        octet gripper_state;        // Gripper state (0-3)
+        unsigned short position;    // Current position (0-1000)
+        octet force;                // Force percentage (0-100)
+        octet speed;                // Speed percentage (0-100)
+        boolean online;             // Device online status
+    };
+
+    /**
+     * Type alias for convenience
+     */
+    typedef DeviceState DeviceStatePubSubType;
+};
