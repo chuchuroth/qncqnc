@@ -95,3 +95,22 @@ inline const char* gripperStateStr(uint16_t s) {
 #define TASK_GUI_PRIORITY       2
 #define TASK_GUI_CORE           1     // GUI rendering on core 1 (Arduino default)
 #define TASK_GUI_TICK_MS        5     // LVGL timer handler interval
+
+// ============================================================================
+// WiFi / MQTT Configuration
+// ============================================================================
+
+#define WIFI_SSID               "YOUR_WIFI_SSID"
+#define WIFI_PASS               "YOUR_WIFI_PASSWORD"
+#define MQTT_BROKER             "192.168.1.100"   // Host machine IP
+#define MQTT_PORT               1883
+#define MQTT_TOPIC              "qnc/modbus/device_state"
+
+// ============================================================================
+// MQTT Task Configuration
+// ============================================================================
+
+#define TASK_MQTT_STACK_SIZE    4096
+#define TASK_MQTT_PRIORITY      1     // Lowest — non-critical telemetry
+#define TASK_MQTT_CORE          0     // Same core as WiFi stack
+#define TASK_MQTT_PUBLISH_MS    500   // Publish interval

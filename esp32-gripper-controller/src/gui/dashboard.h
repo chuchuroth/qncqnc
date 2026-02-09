@@ -1,21 +1,30 @@
 #pragma once
 #include <lvgl.h>
 #include "modbus/gripper_controller.h"
+#include "network/mqtt_publisher.h"
 
 class Dashboard {
 public:
-    Dashboard(GripperController& controller);
+    Dashboard(GripperController& controller, MqttPublisher& mqtt);
 
     void create(lv_obj_t* parent);
     void update(const GripperState& state);
+    void updateNetwork(const NetworkStatus& net);
 
 private:
     GripperController& _controller;
+    MqttPublisher& _mqtt;
 
     // Status bar
     lv_obj_t* _lbl_title;
     lv_obj_t* _led_online;
     lv_obj_t* _lbl_online;
+
+    // Network status indicators
+    lv_obj_t* _led_wifi;
+    lv_obj_t* _lbl_wifi;
+    lv_obj_t* _led_mqtt;
+    lv_obj_t* _lbl_mqtt;
 
     // State labels
     lv_obj_t* _lbl_init_state;

@@ -2,9 +2,12 @@
 #include "gui/theme.h"
 #include "config.h"
 
-Dashboard::Dashboard(GripperController& controller)
+Dashboard::Dashboard(GripperController& controller, MqttPublisher& mqtt)
     : _controller(controller)
+    , _mqtt(mqtt)
     , _lbl_title(nullptr), _led_online(nullptr), _lbl_online(nullptr)
+    , _led_wifi(nullptr), _lbl_wifi(nullptr)
+    , _led_mqtt(nullptr), _lbl_mqtt(nullptr)
     , _lbl_init_state(nullptr), _lbl_gripper_state(nullptr)
     , _bar_position(nullptr), _lbl_position_val(nullptr)
     , _bar_force(nullptr), _lbl_force_val(nullptr)
@@ -91,10 +94,35 @@ void Dashboard::create(lv_obj_t* parent)
     _btn_setpos = createButton(parent, Theme::PADDING + btn_spacing * 3, btn_y,
                                "SET POS", Theme::BLUE, onBtnSetPos);
 
-    // ---- Slider container (y=178, initially hidden) ----
+    // ---- Row 6: Network status (y=174) ----
+    _led_wifi = lv_led_create(parent);
+    lv_led_set_color(_led_wifi, Theme::RED);
+    lv_obj_set_size(_led_wifi, 10, 10);
+    lv_obj_set_pos(_led_wifi, Theme::PADDING, 176);
+    lv_led_off(_led_wifi);
+
+    _lbl_wifi = lv_label_create(parent);
+    lv_label_set_text(_lbl_wifi, "WiFi: ---");
+    lv_obj_set_style_text_font(_lbl_wifi, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(_lbl_wifi, Theme::TEXT_DIM, 0);
+    lv_obj_set_pos(_lbl_wifi, 18, 174);
+
+    _led_mqtt = lv_led_create(parent);
+    lv_led_set_color(_led_mqtt, Theme::RED);
+    lv_obj_set_size(_led_mqtt, 10, 10);
+    lv_obj_set_pos(_led_mqtt, 170, 176);
+    lv_led_off(_led_mqtt);
+
+    _lbl_mqtt = lv_label_create(parent);
+    lv_label_set_text(_lbl_mqtt, "MQTT: ---");
+    lv_obj_set_style_text_font(_lbl_mqtt, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(_lbl_mqtt, Theme::TEXT_DIM, 0);
+    lv_obj_set_pos(_lbl_mqtt, 184, 174);
+
+    // ---- Slider container (y=192, initially hidden) ----
     _slider_container = lv_obj_create(parent);
-    lv_obj_set_size(_slider_container, 312, 50);
-    lv_obj_set_pos(_slider_container, Theme::PADDING, 178);
+    lv_obj_set_size(_slider_container, 312, 46);
+    lv_obj_set_pos(_slider_container, Theme::PADDING, 192);
     lv_obj_set_style_bg_color(_slider_container, Theme::PANEL_COLOR, 0);
     lv_obj_set_style_bg_opa(_slider_container, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(_slider_container, Theme::ACCENT, 0);
@@ -214,6 +242,39 @@ void Dashboard::update(const GripperState& state)
     // Speed bar
     lv_bar_set_value(_bar_speed, state.speed_percent, LV_ANIM_ON);
     lv_label_set_text_fmt(_lbl_speed_val, "%d%%", state.speed_percent);
+}
+
+// ============================================================================
+// Update Network — called from GUI task with latest network status
+// ============================================================================
+
+void Dashboard::updateNetwork(const NetworkStatus& net)
+{
+    // WiFi indicator
+    if (net.wifi_connected) {
+        lv_led_set_color(_led_wifi, Theme::GREEN);
+        lv_led_on(_led_wifi);
+        lv_label_set_text_fmt(_lbl_wifi, "WiFi: %s", net.ip_address);
+        lv_obj_set_style_text_color(_lbl_wifi, Theme::GREEN, 0);
+    } else {
+        lv_led_set_color(_led_wifi, Theme::RED);
+        lv_led_off(_led_wifi);
+        lv_label_set_text(_lbl_wifi, "WiFi: ---");
+        lv_obj_set_style_text_color(_lbl_wifi, Theme::RED, 0);
+    }
+
+    // MQTT indicator
+    if (net.mqtt_connected) {
+        lv_led_set_color(_led_mqtt, Theme::GREEN);
+        lv_led_on(_led_mqtt);
+        lv_label_set_text_fmt(_lbl_mqtt, "MQTT: %lu", net.mqtt_publish_count);
+        lv_obj_set_style_text_color(_lbl_mqtt, Theme::GREEN, 0);
+    } else {
+        lv_led_set_color(_led_mqtt, Theme::RED);
+        lv_led_off(_led_mqtt);
+        lv_label_set_text(_lbl_mqtt, "MQTT: off");
+        lv_obj_set_style_text_color(_lbl_mqtt, Theme::RED, 0);
+    }
 }
 
 // ============================================================================
