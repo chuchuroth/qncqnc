@@ -111,21 +111,53 @@ docker-compose logs -f
 docker-compose down
 ```
 
+## Hardware Setup (Raspberry Pi / CM5)
+
+### RS485 Wiring to DH Gripper
+
+Connect the RS485 transceiver module to the Pi's UART0 pins:
+
+| Pi Pin | GPIO | Function | RS485 Module |
+|--------|------|----------|--------------|
+| Pin 8  | GPIO14 (TXD) | Transmit | **RXD / RO** (Receiver Output) |
+| Pin 10 | GPIO15 (RXD) | Receive  | **TXD / DI** (Driver Input) |
+| Pin 6  | GND          | Ground   | GND |
+
+> **Important:** The TX/RX lines are **crossed** - the Pi's TXD connects to the RS485 module's RXD (RO), and the Pi's RXD connects to the module's TXD (DI). This is because the Pi transmits what the module receives, and vice versa.
+
+### Enable UART on Raspberry Pi
+
+Add to `/boot/firmware/config.txt`:
+```
+enable_uart=1
+```
+Then reboot. The gripper will be available at `/dev/ttyAMA0`.
+
+### Serial Port Permissions
+
+```bash
+sudo usermod -aG dialout $USER
+# Logout/login for changes to take effect
+```
+
+### Native Quick Start (without Docker)
+
+```bash
+# Terminal 1 - Monitor gripper state
+./build/gripper_dashboard
+
+# Terminal 2 - Control gripper
+./build/gripper_control /dev/ttyAMA0 1 115200
+```
+
 ## Target Machine Requirements
 
 For running the Docker container on other machines:
 
 - **Docker Engine** 20.10 or later
-- **RS485 USB adapter** (e.g., `/dev/ttyUSB0`) for gripper communication
+- **RS485 USB adapter** (e.g., `/dev/ttyUSB0`) or **UART + RS485 transceiver** (`/dev/ttyAMA0`) for gripper communication
 - **Network access** for NeuraSync DDS communication (uses UDP multicast)
-- **Linux x86_64** (the image is built for this architecture)
-
-Ensure the user has permissions for serial devices:
-```bash
-# Add user to dialout group for serial port access
-sudo usermod -aG dialout $USER
-# Logout/login for changes to take effect
-```
+- **Linux aarch64 / x86_64**
 
 ## Building from Source
 
