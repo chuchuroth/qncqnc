@@ -18,6 +18,10 @@
 #include <neura_sync_core_msgs/GripperStatePubSubTypes.hpp>
 #include <neura_sync_utils/logger.hpp>
 
+// Bring GripperState types into scope
+using GripperState::DeviceState;
+using GripperState::DeviceStatePubSubType;
+
 std::atomic<bool> running{true};
 
 void signal_handler(int) {
