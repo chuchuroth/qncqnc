@@ -21,6 +21,10 @@
 #include <neura_sync/publisher_factory.hpp>
 #include <neura_sync_core_msgs/GripperState.hpp>
 #include <neura_sync_core_msgs/GripperStatePubSubTypes.hpp>
+
+// Bring GripperState types into scope
+using GripperState::DeviceState;
+using GripperState::DeviceStatePubSubType;
 #endif
 
 // DH Gripper register addresses

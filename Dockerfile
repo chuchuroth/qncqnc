@@ -36,7 +36,7 @@ RUN git clone --depth 1 --branch v1.3.1 https://github.com/eProsima/foonathan_me
     cd foonathan_memory_vendor && \
     mkdir build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release && \
-    make -j$(nproc) && \
+    make -j1 && \
     make install && \
     ldconfig
 
@@ -45,7 +45,7 @@ RUN git clone --depth 1 --branch v2.2.6 https://github.com/eProsima/Fast-CDR.git
     cd Fast-CDR && \
     mkdir build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release && \
-    make -j$(nproc) && \
+    make -j1 && \
     make install && \
     ldconfig
 
@@ -57,7 +57,7 @@ RUN git clone --depth 1 --branch v3.1.0 https://github.com/eProsima/Fast-DDS.git
         -DCOMPILE_EXAMPLES=OFF \
         -DBUILD_TESTING=OFF \
         -DTHIRDPARTY_Asio=FORCE && \
-    make -j$(nproc) && \
+    make -j1 && \
     make install && \
     ldconfig
 
@@ -83,12 +83,13 @@ COPY neura-sync/ /build/neura-sync/
 
 # Build and install neura-sync
 RUN cd /build/neura-sync && \
+    rm -rf build && \
     mkdir -p build && cd build && \
     cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_TESTS=OFF \
         -DBUILD_EXAMPLES=OFF && \
-    make -j$(nproc) && \
+    make -j1 && \
     make install && \
     ldconfig
 
@@ -107,7 +108,7 @@ RUN mkdir -p /build/build && cd /build/build \
         -DBUILD_EXAMPLES=ON \
         -DBUILD_WITH_NEURASYNC=ON \
         -DENABLE_LOGGING=ON \
-    && make -j$(nproc)
+    && make -j1
 
 # Install binaries
 RUN mkdir -p /opt/modbus_rtu/bin /opt/modbus_rtu/share && \

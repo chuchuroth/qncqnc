@@ -24,6 +24,7 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <linux/serial.h>
 #include <errno.h>
 
 #ifdef ENABLE_MODBUS_RTU_LOGGING
@@ -307,6 +308,15 @@ inline bool modbus_rtu::connect()
 
     // Flush any existing data
     tcflush(_fd, TCIOFLUSH);
+
+    // Enable RS485 mode (kernel handles DE/RE direction control)
+    struct serial_rs485 rs485conf = {};
+    rs485conf.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND;
+    if (ioctl(_fd, TIOCSRS485, &rs485conf) == 0) {
+        RTU_LOG("RS485 mode enabled on %s", _port.c_str());
+    } else {
+        RTU_LOG("RS485 mode not available, using standard UART");
+    }
 
     _connected = true;
     clear_error();
